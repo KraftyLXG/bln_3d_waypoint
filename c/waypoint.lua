@@ -1,6 +1,7 @@
 local waypoint = nil
 local lastWaypointStatus = false
 local isEnabled = true
+local wasEnabledBeforeCinematic = true
 local customDestination = nil
 local GetWaypointCoords = GetWaypointCoords
 local IsWaypointActive = IsWaypointActive
@@ -76,6 +77,30 @@ RegisterCommand(Config.commands.toggle, function()
         args = {'System', isEnabled and 'Waypoint indicator enabled' or 'Waypoint indicator disabled'}
     })
 end, false)
+
+Citizen.CreateThread(function()
+    local lastState = false -- Track last state to avoid unnecessary checks
+
+    while true do
+        Citizen.Wait(5000)
+
+        local IsInCinematicMode = Citizen.InvokeNative(0x74F1D22EFA71FAB8) -- Check cinematic black bars
+
+        if IsInCinematicMode ~= lastState then -- Only run logic if state changes
+            lastState = IsInCinematicMode
+
+            if IsInCinematicMode then
+                if isEnabled then
+                    wasEnabledBeforeCinematic = true -- Store previous state
+                    isEnabled = false
+                end
+            elseif wasEnabledBeforeCinematic then
+                isEnabled = true
+                wasEnabledBeforeCinematic = false -- Reset state
+            end
+        end
+    end
+end)
 
 Citizen.CreateThread(function()
     while true do
